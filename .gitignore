@@ -1,0 +1,4 @@
+/checkpoints/
+__pycache__
+ppo_pokemon_red.zip
+venv
