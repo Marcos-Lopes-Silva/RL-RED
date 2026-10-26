@@ -7,6 +7,7 @@ class PokemonRAM(IntEnum):
     PLAYER_Y = 0xD361
     MAP_ID = 0xD35E
     PARTY_SIZE = 0xD163
+    PARTY_SPECIES_ADDR = 0xD164
     BADGES = 0xD356
     OPPONENT_HP = 0xCFE7
 

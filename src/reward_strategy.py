@@ -3,6 +3,7 @@ import math
 from collections import defaultdict
 from src.game_state import GameState
 
+GRASS_TRIGGER_Y = 1
 
 class RewardSystem:
     def __init__(self, strategies):
@@ -40,7 +41,7 @@ class ProgressReward(RewardStrategy):
             reward += 100.0
         if current_state.map_id not in self.visited_maps:
             self.visited_maps.add(current_state.map_id)
-            reward += 50.0
+            reward += 5.0
         return reward
 
 
@@ -48,7 +49,7 @@ class NoveltyReward(RewardStrategy):
     def __init__(self):
         self.visited = set()
 
-    def reset(self, initial_state=None):
+    def reset(self, initial_state: GameState=None):
         self.visited.clear()
         if initial_state is not None:
             self.visited.add((initial_state.map_id, initial_state.x, initial_state.y))
@@ -57,15 +58,25 @@ class NoveltyReward(RewardStrategy):
     def compute(self, prev_state: GameState, current_state: GameState):
         key = (current_state.map_id, current_state.x, current_state.y)
         if key in self.visited:
-            return 0.0
+            return -0.02
         self.visited.add(key)
         return 0.35
 
 
 class StagnationPenalty(RewardStrategy):
+    def __init__(self, grace=15, penalty=-0.05):
+        self.grace = grace
+        self.penalty = penalty
+        self.still = 0
+
+    def reset(self, initial_state: GameState=None):
+        self.still = 0
+
     def compute(self, prev_state: GameState, current_state: GameState):
         if prev_state.position() == current_state.position():
-            return -0.05
+            self.still += 1
+            return self.penalty if self.still > self.grace else 0.0
+        self.still = 0
         return 0.0
 
 
@@ -96,7 +107,7 @@ class MovementReward(RewardStrategy):
         return 0.0
 
 class BacktrackPenalty(RewardStrategy):
-    def __init__(self, window=100, penalty=-5.0):
+    def __init__(self, window=50, penalty=-.5):
         self.window = window
         self.penalty = penalty
         self.previous_map = None
@@ -119,4 +130,47 @@ class BacktrackPenalty(RewardStrategy):
 
         self.previous_map = prev_state.map_id
         self.steps_since_change = 0
+        return reward
+
+class StarterReward(RewardStrategy):
+    def __init__(self, bonus=100.0):
+        self.got = False
+        self.bonus = bonus
+
+    def reset(self, initial_state: GameState=None):
+        self.got = initial_state is not None and initial_state.party_size > 0
+
+    def compute(self, prev_state: GameState, current_state: GameState):
+        if not self.got and current_state.party_size > prev_state.party_size:
+            self.got = True
+            reward = self.bonus
+            return reward
+        return 0.0
+    
+class MilestoneReward(RewardStrategy):
+    def __init__(self):
+        self.stages = [
+            ("saiu_casa",     lambda s: s.map_id == 0,                              20.0),
+            ("grama_oak",     lambda s: s.map_id == 0 and s.y <= GRASS_TRIGGER_Y,   30.0),
+            ("entrou_lab",    lambda s: s.map_id == 40,                             30.0),
+            ("pegou_inicial", lambda s: s.party_size > 0,                          100.0),
+            ("route1",        lambda s: s.map_id == 12,                             50.0),
+            ("viridian",      lambda s: s.map_id == 1,                             100.0),
+        ]
+        self.stage = 0
+
+    def reset(self, initial_state=None):
+        self.stage = 0
+        if initial_state is None:
+            return
+        
+        for i, (_, cond, _) in enumerate(self.stages):
+            if cond(initial_state):
+                self.stage = i + 1
+
+    def compute(self, prev_state, current_state):
+        reward = 0.0
+        while self.stage < len(self.stages) and self.stages[self.stage][1](current_state):
+            reward += self.stages[self.stage][2]
+            self.stage += 1
         return reward

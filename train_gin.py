@@ -8,12 +8,12 @@ from src.pokemon_env import PokemonEnv
 from src.pyboy_adapter import PyBoyAdapter
 from src.pokemon_ram import MemoryService
 from src.state_builder import StateBuilder
-from src.reward_strategy import RewardSystem, ProgressReward, NoveltyReward, StagnationPenalty, BacktrackPenalty
+from src.reward_strategy import RewardSystem, ProgressReward, NoveltyReward, StagnationPenalty, BacktrackPenalty, StarterReward, MilestoneReward
 
 ROM_PATH = "data/red.gb"
 MODEL_PATH = "ppo_pokemon_red"
 N_ENVS = 8
-TOTAL_TIMESTEPS = 1_000_000
+TOTAL_TIMESTEPS = 2_500_000
 
 
 def make_env(rank):
@@ -29,7 +29,8 @@ def make_env(rank):
             ProgressReward(),
             NoveltyReward(),
             StagnationPenalty(),
-            BacktrackPenalty()
+            BacktrackPenalty(),
+            MilestoneReward()
         ])
 
         return PokemonEnv(adapter, state_builder, reward_system)
