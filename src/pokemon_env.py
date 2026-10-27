@@ -1,3 +1,5 @@
+import random
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -6,17 +8,23 @@ from src.pyboy_adapter import PyBoyAdapter
 from src.reward_strategy import RewardSystem
 from src.state_builder import StateBuilder
 
-STATE_PATH = "data/re.state"
-
 
 class PokemonEnv(gym.Env):
-    def __init__(self, pyboy_adapter: PyBoyAdapter, state_builder: StateBuilder, reward_system: RewardSystem):
+    def __init__(
+        self,
+        pyboy_adapter: PyBoyAdapter,
+        state_builder: StateBuilder,
+        reward_system: RewardSystem,
+        state_paths=("data/re.state",),
+        max_steps=2048,
+    ):
         super().__init__()
         self.adapter = pyboy_adapter
         self.state_builder = state_builder
         self.reward_system = reward_system
+        self.state_paths = list(state_paths)
 
-        self.max_steps = 2048
+        self.max_steps = max_steps
         self.step_count = 0
         self.prev_state = None
 
@@ -26,8 +34,6 @@ class PokemonEnv(gym.Env):
         self.last_action = 0
         self.stuck_steps = 0
 
-        # 4 base + 1 tile atual + 4 vizinhos + 1 stuck + 8 última ação
-        # + 1 mapas visitados + 1 steps sem tile novo = 20
         self.observation_space = spaces.Box(low=0, high=1, shape=(22,), dtype=np.float32)
         self.action_space = spaces.Discrete(8)
 
@@ -64,7 +70,8 @@ class PokemonEnv(gym.Env):
         self.stuck_steps = 0
         self.last_action = 0
 
-        with open(STATE_PATH, "rb") as f:
+        path = random.choice(self.state_paths)
+        with open(path, "rb") as f:
             self.adapter.pyboy.load_state(f)
 
         raw_state = self.state_builder.build()
@@ -75,7 +82,8 @@ class PokemonEnv(gym.Env):
         self.visited_maps.add(raw_state[2])
 
         observation = self._build_obs(raw_state)
-        info = {}
+        info = {"state_path": path}
+        print(info)
 
         return observation, info
 
@@ -86,13 +94,11 @@ class PokemonEnv(gym.Env):
         raw_state = self.state_builder.build()
         current_game_state = self._to_game_state(raw_state)
 
-        # parado?
         if current_game_state.position() == self.prev_state.position():
             self.stuck_steps += 1
         else:
             self.stuck_steps = 0
 
-        # tile novo?
         key = (raw_state[2], raw_state[0], raw_state[1])
         if key not in self.visits:
             self.steps_since_new = 0
@@ -115,6 +121,7 @@ class PokemonEnv(gym.Env):
             "y": raw_state[1],
             "map_id": raw_state[2],
             "badges": raw_state[3],
+            "party_size": raw_state[4],
             "unique_tiles": len(self.visits),
             "maps_visited": len(self.visited_maps),
         }
@@ -122,4 +129,11 @@ class PokemonEnv(gym.Env):
         return observation, reward, terminated, truncated, info
 
     def _to_game_state(self, raw):
-        return GameState(x=raw[0], y=raw[1], map_id=raw[2], badges=raw[3], party_size=raw[4], first_species=raw[5])
+        return GameState(
+            x=raw[0],
+            y=raw[1],
+            map_id=raw[2],
+            badges=raw[3],
+            party_size=int(raw[4]),
+            first_species=int(raw[5]),
+        )

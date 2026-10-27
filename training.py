@@ -1,4 +1,7 @@
 import os
+import shutil
+from datetime import datetime
+
 from pyboy import PyBoy
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
@@ -8,12 +11,29 @@ from src.pokemon_env import PokemonEnv
 from src.pyboy_adapter import PyBoyAdapter
 from src.pokemon_ram import MemoryService
 from src.state_builder import StateBuilder
-from src.reward_strategy import RewardSystem, ProgressReward, NoveltyReward, StagnationPenalty, BacktrackPenalty, StarterReward, MilestoneReward
+from src.reward_strategy import (
+    RewardSystem,
+    ProgressReward,
+    NoveltyReward,
+    StagnationPenalty,
+    BacktrackPenalty,
+    MilestoneReward,
+)
 
 ROM_PATH = "data/red.gb"
 MODEL_PATH = "ppo_pokemon_red"
+BACKUP_DIR = "modelos"
 N_ENVS = 8
-TOTAL_TIMESTEPS = 2_500_000
+TOTAL_TIMESTEPS = 2_000_000
+CONTINUE_LR = 1e-4
+
+
+STATES = [
+    "data/re.state",
+    "data/re.state",
+    "data/pallet.state",
+    "data/lab.state",
+]
 
 
 def make_env(rank):
@@ -30,11 +50,22 @@ def make_env(rank):
             NoveltyReward(),
             StagnationPenalty(),
             BacktrackPenalty(),
-            MilestoneReward()
+            MilestoneReward(),
         ])
 
-        return PokemonEnv(adapter, state_builder, reward_system)
+        return PokemonEnv(adapter, state_builder, reward_system, state_paths=STATES)
     return _init
+
+
+def backup_model():
+    src = MODEL_PATH + ".zip"
+    if not os.path.exists(src):
+        return
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dst = os.path.join(BACKUP_DIR, f"{MODEL_PATH}_{stamp}.zip")
+    shutil.copy(src, dst)
+    print(f"Backup salvo em {dst}")
 
 
 if __name__ == "__main__":
@@ -45,18 +76,32 @@ if __name__ == "__main__":
     env = SubprocVecEnv([make_env(i) for i in range(N_ENVS)])
     env = VecMonitor(env)
 
-    model = PPO(
-        "MlpPolicy",
-        env,
-        verbose=1,
-        learning_rate=3e-4,
-        n_steps=512,
-        batch_size=256,
-        n_epochs=10,
-        gamma=0.99,
-        device="cpu",
-        tensorboard_log="./ppo_tensorboard/",
-    )
+    if os.path.exists(MODEL_PATH + ".zip"):
+        backup_model()
+        print("Continuando o treino do modelo salvo...")
+        model = PPO.load(
+            MODEL_PATH,
+            env=env,
+            device="cpu",
+            tensorboard_log="./ppo_tensorboard/",
+            learning_rate=CONTINUE_LR,
+        )
+        reset_timesteps = False
+    else:
+        print("Nenhum modelo encontrado, criando um novo...")
+        model = PPO(
+            "MlpPolicy",
+            env,
+            verbose=1,
+            learning_rate=3e-4,
+            n_steps=512,
+            batch_size=256,
+            n_epochs=10,
+            gamma=0.99,
+            device="cpu",
+            tensorboard_log="./ppo_tensorboard/",
+        )
+        reset_timesteps = True
 
     checkpoint = CheckpointCallback(
         save_freq=50_000 // N_ENVS,
@@ -65,7 +110,11 @@ if __name__ == "__main__":
     )
 
     print("Iniciando treinamento com PPO...")
-    model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=checkpoint)
+    model.learn(
+        total_timesteps=TOTAL_TIMESTEPS,
+        callback=checkpoint,
+        reset_num_timesteps=reset_timesteps,
+    )
     model.save(MODEL_PATH)
 
     print("Treinamento concluído e modelo salvo.")

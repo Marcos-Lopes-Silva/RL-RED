@@ -146,6 +146,13 @@ class StarterReward(RewardStrategy):
             reward = self.bonus
             return reward
         return 0.0
+
+class CapturedPokemon(RewardStrategy):
+    def compute(self, prev_state, current_state):
+        if prev_state.party_size < current_state.party_size:
+            return 200.0
+        else:
+            return 0.0
     
 class MilestoneReward(RewardStrategy):
     def __init__(self):
@@ -154,6 +161,7 @@ class MilestoneReward(RewardStrategy):
             ("grama_oak",     lambda s: s.map_id == 0 and s.y <= GRASS_TRIGGER_Y,   30.0),
             ("entrou_lab",    lambda s: s.map_id == 40,                             30.0),
             ("pegou_inicial", lambda s: s.party_size > 0,                          100.0),
+            ("saiu_lab",      lambda s: s.map_id == 0,                              30.0),
             ("route1",        lambda s: s.map_id == 12,                             50.0),
             ("viridian",      lambda s: s.map_id == 1,                             100.0),
         ]
