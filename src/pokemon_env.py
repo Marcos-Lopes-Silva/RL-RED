@@ -134,6 +134,9 @@ class PokemonEnv(gym.Env):
             y=raw[1],
             map_id=raw[2],
             badges=raw[3],
-            party_size=int(raw[4]),
-            first_species=int(raw[5]),
+            party_size=raw[4],
+            first_species=raw[5],
+            in_battle=raw[6],
+            enemy_hp=raw[7],
+            enemy_max_hp=raw[8], 
         )

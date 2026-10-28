@@ -4,6 +4,10 @@ from collections import defaultdict
 from src.game_state import GameState
 
 GRASS_TRIGGER_Y = 1
+GRASS_TRIGGER_X = 10
+
+BATTLE_TRIGGER_Y = 4
+BATTLE_TRIGGER_X = 6
 
 class RewardSystem:
     def __init__(self, strategies):
@@ -64,7 +68,7 @@ class NoveltyReward(RewardStrategy):
 
 
 class StagnationPenalty(RewardStrategy):
-    def __init__(self, grace=15, penalty=-0.05):
+    def __init__(self, grace=15, penalty=-0.02):
         self.grace = grace
         self.penalty = penalty
         self.still = 0
@@ -147,21 +151,42 @@ class StarterReward(RewardStrategy):
             return reward
         return 0.0
 
-class CapturedPokemon(RewardStrategy):
-    def compute(self, prev_state, current_state):
-        if prev_state.party_size < current_state.party_size:
-            return 200.0
-        else:
+class BattleReward(RewardStrategy):
+    def __init__(self, damage_scale=5.0, debuff_bonus=0.5, win_bonus=20.0):
+        self.damage_scale = damage_scale
+        self.debuff_bonus = debuff_bonus
+        self.win_bonus = win_bonus
+
+    def compute(self, prev_state: GameState, current_state: GameState):
+        if prev_state.in_battle == 0:
             return 0.0
+
+        if current_state.in_battle == 0:
+            return self.win_bonus if prev_state.enemy_hp == 0 else 0.0
+
+        same_enemy = (
+            current_state.enemy_max_hp > 0
+            and prev_state.enemy_max_hp == current_state.enemy_max_hp
+        )
+        if not same_enemy:
+            return 0.0
+
+        reward = 0.0
+
+        if current_state.enemy_hp < prev_state.enemy_hp:
+            damage = prev_state.enemy_hp - current_state.enemy_hp
+            reward += self.damage_scale * damage / current_state.enemy_max_hp
+
+        return reward
     
 class MilestoneReward(RewardStrategy):
     def __init__(self):
         self.stages = [
             ("saiu_casa",     lambda s: s.map_id == 0,                              20.0),
-            ("grama_oak",     lambda s: s.map_id == 0 and s.y <= GRASS_TRIGGER_Y,   30.0),
+            ("grama_oak",     lambda s: s.map_id == 0 and s.y <= GRASS_TRIGGER_Y and s.x <= GRASS_TRIGGER_X,   30.0),
             ("entrou_lab",    lambda s: s.map_id == 40,                             30.0),
             ("pegou_inicial", lambda s: s.party_size > 0,                          100.0),
-            ("saiu_lab",      lambda s: s.map_id == 0,                              30.0),
+            ("saiu_lab",      lambda s: s.map_id == 0 and s.y <= BATTLE_TRIGGER_Y and s.x <= BATTLE_TRIGGER_Y,                              50.0),
             ("route1",        lambda s: s.map_id == 12,                             50.0),
             ("viridian",      lambda s: s.map_id == 1,                             100.0),
         ]

@@ -36,9 +36,10 @@ obs = env.reset()
 last_map = None
 while True:
     action, _states = model.predict(obs, deterministic=False)
-    x, y, map_id, badges, party_size, first_species = state_builder.build()
+    x, y, map_id, badges, party_size, first_species, in_battle, enemy_hp, enemy_max_hp = state_builder.build()
     obs, reward, done, info = env.step(action)
     print(f"ACTION: {action}")
+    print(f"IN BATTLE: {in_battle}")
     print(x, y)
 
     if done:

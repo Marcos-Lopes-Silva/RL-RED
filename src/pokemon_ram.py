@@ -1,7 +1,6 @@
 from enum import IntEnum
 from pyboy import PyBoy
 
-
 class PokemonRAM(IntEnum):
     PLAYER_X = 0xD362
     PLAYER_Y = 0xD361
@@ -9,7 +8,9 @@ class PokemonRAM(IntEnum):
     PARTY_SIZE = 0xD163
     PARTY_SPECIES_ADDR = 0xD164
     BADGES = 0xD356
-    OPPONENT_HP = 0xCFE7
+    IN_BATTLE = 0xD057
+    ENEMY_HP = 0xCFE5
+    ENEMY_MAX_HP = 0xCFF3
 
 
 class MemoryService:
@@ -18,6 +19,9 @@ class MemoryService:
 
     def get_value(self, address: PokemonRAM) -> int:
         return self.pyboy.memory[address.value]
+
+    def get_word(self, address: PokemonRAM) -> int:
+        return (self.pyboy.memory[address.value] << 8) | self.pyboy.memory[address.value + 1]
 
     def get_player_pos(self):
         return (
@@ -40,3 +44,13 @@ class MemoryService:
 
     def get_sprite_movement(self, sprite_id: int) -> int:
         return self.get_sprite_value(sprite_id, 0x1)
+
+    def in_battle(self, in_battle) -> int:
+        v = self.get_value(in_battle)
+        return v if v in (1, 2) else 0
+
+    def enemy_hp(self, enemy_hp) -> int:
+        return self.get_word(enemy_hp)
+
+    def enemy_max_hp(self, enemy_max_hp) -> int:
+        return self.get_word(enemy_max_hp)
