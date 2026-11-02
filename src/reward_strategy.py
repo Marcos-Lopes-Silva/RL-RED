@@ -60,6 +60,8 @@ class NoveltyReward(RewardStrategy):
 
 
     def compute(self, prev_state: GameState, current_state: GameState):
+        if current_state.in_battle:
+            return 0.0
         key = (current_state.map_id, current_state.x, current_state.y)
         if key in self.visited:
             return -0.02
@@ -77,6 +79,9 @@ class StagnationPenalty(RewardStrategy):
         self.still = 0
 
     def compute(self, prev_state: GameState, current_state: GameState):
+        if current_state.in_battle:
+            self.still = 0
+            return 0.0
         if prev_state.position() == current_state.position():
             self.still += 1
             return self.penalty if self.still > self.grace else 0.0
@@ -186,7 +191,7 @@ class MilestoneReward(RewardStrategy):
             ("grama_oak",     lambda s: s.map_id == 0 and s.y <= GRASS_TRIGGER_Y and s.x <= GRASS_TRIGGER_X,   30.0),
             ("entrou_lab",    lambda s: s.map_id == 40,                             30.0),
             ("pegou_inicial", lambda s: s.party_size > 0,                          100.0),
-            ("saiu_lab",      lambda s: s.map_id == 0 and s.y <= BATTLE_TRIGGER_Y and s.x <= BATTLE_TRIGGER_Y,                              50.0),
+            ("saiu_lab",      lambda s: s.map_id == 0 and s.y <= BATTLE_TRIGGER_Y and s.x <= BATTLE_TRIGGER_X,                              50.0),
             ("route1",        lambda s: s.map_id == 12,                             50.0),
             ("viridian",      lambda s: s.map_id == 1,                             100.0),
         ]

@@ -11,7 +11,7 @@ from src.state_builder import StateBuilder
 from src.reward_strategy import RewardSystem
 
 ROM_PATH = "data/red.gb"
-MODEL_PATH = "./modelos/ppo_pokemon_red.zip"
+MODEL_PATH = "./ppo_pokemon_red.zip"
 
 pyboy_instance = PyBoy(ROM_PATH, window="SDL2")
 pyboy_instance.set_emulation_speed(5)

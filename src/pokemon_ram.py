@@ -9,8 +9,8 @@ class PokemonRAM(IntEnum):
     PARTY_SPECIES_ADDR = 0xD164
     BADGES = 0xD356
     IN_BATTLE = 0xD057
-    ENEMY_HP = 0xCFE5
-    ENEMY_MAX_HP = 0xCFF3
+    ENEMY_HP = 0xCFE6
+    ENEMY_MAX_HP = 0xCFF4
 
 
 class MemoryService:
